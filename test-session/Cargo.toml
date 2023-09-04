@@ -1,0 +1,20 @@
+[package]
+name = "test-session"
+version = "0.1.0"
+edition = "2018"
+
+[[bin]]
+name = "test-session"
+path = "src/main.rs"
+bench = false
+doctest = false
+test = false
+
+[dependencies]
+casper-contract = { version = "3.0.0", features = ["test-support"] }
+casper-types = "3.0.0"
+hex = { version = "0.4.3", default-features = false }
+
+[profile.release]
+codegen-units = 1
+lto = true

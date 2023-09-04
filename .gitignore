@@ -1,0 +1,7 @@
+node_modules
+.env
+target
+scripts
+*.wasm
+tests/wasm
+.DS_Store

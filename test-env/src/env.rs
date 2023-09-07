@@ -10,7 +10,7 @@ use casper_types::{
     system::mint,
     testing::TestRng,
     CLTyped, ContractPackageHash, HashAddr, Key, PublicKey, RuntimeArgs, SecretKey, URef,
-    SECP256K1_TAG, U512,
+    SECP256K1_TAG, U256, U512,
 };
 
 use crate::gas;
@@ -231,6 +231,42 @@ impl TestEnv {
             .expect("should have latest version");
 
         self.builder.get_value(*contract_hash, key_name)
+    }
+
+    pub fn approve(&mut self, token: Key, owner: AccountHash, spender: Key, amount: U256) {
+        self.call_contract(
+            Some(owner),
+            token.into_hash().unwrap().into(),
+            "approve",
+            runtime_args! {
+                "spender" => spender,
+                "amount" => amount
+            },
+            true,
+        );
+    }
+
+    pub fn transfer(&mut self, token: Key, owner: AccountHash, recipient: Key, amount: U256) {
+        self.call_contract(
+            Some(owner),
+            token.into_hash().unwrap().into(),
+            "transfer",
+            runtime_args! {
+                "recipient" => recipient,
+                "amount" => amount
+            },
+            true,
+        );
+    }
+
+    pub fn balance_of(&mut self, token: Key, user: Key) -> U256 {
+        self.call_view_function(
+            token,
+            "balance_of",
+            runtime_args! {
+                "address" => user
+            },
+        )
     }
 }
 

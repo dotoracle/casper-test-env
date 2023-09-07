@@ -46,7 +46,6 @@ fn call_versioned_contract(
     let (contract_version_ptr, contract_version_size, _bytes) = to_ptr(contract_version);
     let (entry_point_name_ptr, entry_point_name_size, _bytes) = to_ptr(entry_point_name);
     let (runtime_args_ptr, runtime_args_size, _bytes) = to_ptr(runtime_args);
-
     let bytes_written = {
         let mut bytes_written = MaybeUninit::uninit();
         let ret = unsafe {
@@ -73,7 +72,6 @@ fn deserialize_contract_result(bytes_written: usize) -> Vec<u8> {
         // If no bytes were written, the host buffer hasn't been set and hence shouldn't be read.
         Vec::new()
     } else {
-        // NOTE: this is a copy of the contents of `read_host_buffer()`.  Calling that directly from
         // here causes several contracts to fail with a Wasmi `Unreachable` error.
         let bytes_non_null_ptr = contract_api::alloc_bytes(bytes_written);
         let mut dest: Vec<u8> = unsafe {

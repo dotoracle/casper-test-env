@@ -9,11 +9,19 @@ use casper_types::{
     runtime_args,
     system::mint,
     testing::TestRng,
-    CLTyped, ContractPackageHash, HashAddr, Key, PublicKey, RuntimeArgs, SecretKey, URef,
-    SECP256K1_TAG, U256, U512,
+    CLTyped, ContractHash, ContractPackageHash, HashAddr, Key, PublicKey, RuntimeArgs, SecretKey,
+    URef, SECP256K1_TAG, U256, U512,
 };
 
 use crate::gas;
+
+/// The key under which the events are stored.
+pub const EVENTS_DICT: &str = "__events";
+/// The key under which the events length is stored.
+pub const EVENTS_LENGTH: &str = "__events_length";
+/// The key under which the event schemas are stored.
+pub const EVENTS_SCHEMA: &str = "__events_schema";
+
 pub struct TestEnv {
     pub builder: InMemoryWasmTestBuilder,
     pub accounts: Vec<AccountHash>,
@@ -217,8 +225,13 @@ impl TestEnv {
         contract_package_hash: Key,
         key_name: &str,
     ) -> T {
-        let contract_package_hash: ContractPackageHash =
-            contract_package_hash.into_hash().unwrap().into();
+        let contract_hash = self.get_active_contract_hash(contract_package_hash);
+
+        self.builder.get_value(contract_hash, key_name)
+    }
+
+    pub fn get_active_contract_hash(&mut self, package_hash: Key) -> ContractHash {
+        let contract_package_hash: ContractPackageHash = package_hash.into_hash().unwrap().into();
         let contract_package = self
             .builder
             .get_contract_package(contract_package_hash)
@@ -229,8 +242,7 @@ impl TestEnv {
             .rev()
             .next()
             .expect("should have latest version");
-
-        self.builder.get_value(*contract_hash, key_name)
+        contract_hash.clone()
     }
 
     pub fn approve(&mut self, token: Key, owner: AccountHash, spender: Key, amount: U256) {
@@ -267,6 +279,47 @@ impl TestEnv {
                 "address" => user
             },
         )
+    }
+
+    pub fn get_event_length(&mut self, contract_package: Key) -> u32 {
+        self.get_named_key_value(contract_package, EVENTS_LENGTH)
+    }
+
+    pub fn get_last_event<T: FromBytes>(&mut self, contract_package: Key) -> Option<T> {
+        let events_length: u32 = self.get_event_length(contract_package);
+        self.get_event(contract_package, events_length as usize - 1)
+    }
+
+    pub fn get_event<T: FromBytes>(&mut self, contract_package: Key, event_position: usize) -> Option<T> {
+        let contract_hash: ContractHash = self.get_active_contract_hash(contract_package);
+
+        let dictionary_seed_uref: URef = *self
+            .builder
+            .get_contract(contract_hash)
+            .unwrap()
+            .named_keys()
+            .get(EVENTS_DICT)
+            .unwrap()
+            .as_uref()
+            .unwrap();
+
+        match self.builder.query_dictionary_item(
+            None,
+            dictionary_seed_uref,
+            &event_position.to_string(),
+        ) {
+            Ok(val) => {
+                let bytes = val
+                    .as_cl_value()
+                    .unwrap()
+                    .clone()
+                    .into_t::<Bytes>()
+                    .unwrap();
+                let value: T = T::from_bytes(bytes.as_slice()).unwrap().0;
+                Some(value)
+            }
+            Err(_) => None,
+        }
     }
 }
 
